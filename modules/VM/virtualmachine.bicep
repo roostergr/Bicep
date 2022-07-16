@@ -1,21 +1,24 @@
 param subnetId string
 param publicKey string
 param script64 string
+param location string
+param adminuser string
 
 module jbnic '../vnet/nic.bicep' = {
   name: 'jbnic'
   params: {
+    location: location
     subnetId: subnetId
   }
 }
 
 resource jumpbox 'Microsoft.Compute/virtualMachines@2021-03-01' = {
   name: 'jumpbox'
-  location: resourceGroup().location
+  location: location
   properties: {
     osProfile: {
       computerName: 'jumpbox'
-      adminUsername: 'azureuser'
+      adminUsername: adminuser
       linuxConfiguration: {
         ssh: {
           publicKeys: [
@@ -55,9 +58,9 @@ resource jumpbox 'Microsoft.Compute/virtualMachines@2021-03-01' = {
   }
 }
 
-resource vmext 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = {
+resource vmext 'Microsoft.Compute/virtualMachines/extensions@2022-03-01' = {
   name: '${jumpbox.name}/csscript'
-  location: resourceGroup().location
+  location: location
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'

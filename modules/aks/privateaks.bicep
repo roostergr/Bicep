@@ -5,16 +5,17 @@ param privateDNSZoneId string
 param subnetId string
 param identity object
 param principalId string
+param location string
 
-resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
+resource aksCluster 'Microsoft.ContainerService/managedClusters@2022-04-01' = {
   name: '${basename}aks'
-  location: resourceGroup().location
+  location: location
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: identity
   }
   properties: {
-    kubernetesVersion: '1.19.9'
+    kubernetesVersion: '1.22.11'
     nodeResourceGroup: '${basename}-aksInfraRG'
     dnsPrefix: '${basename}aks'
     agentPoolProfiles: [

@@ -7,7 +7,7 @@ param vnetNamePrefix string
 param subnets array
 param location string = resourceGroup().location
 
-resource vnet 'Microsoft.Network/virtualNetworks@2020-11-01' = {
+resource vnet 'Microsoft.Network/virtualNetworks@2022-01-01' = {
   name: '${vnetNamePrefix}-VNet'
   location: location
   properties: {

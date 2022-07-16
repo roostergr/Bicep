@@ -1,8 +1,10 @@
 targetScope = 'subscription'
 
 // Parameters
+param location string
 param baseName string
 param aadGroupdIds array
+param adminuser string
 param hubVNETaddPrefixes array = [
   '10.0.0.0/16'
 ]
@@ -44,7 +46,7 @@ param pubkeydata string
 param script64 string
 
 // Variables
-var rgName = '${baseName}-RG'
+var rgName = 'PlayGround'
 
 // Must be unique name
 var acrName = '${uniqueString(rgName)}acr'
@@ -53,7 +55,6 @@ module rg 'modules/resource-group/rg.bicep' = {
   name: rgName
   params: {
     rgName: rgName
-    location: deployment().location
   }
 }
 
@@ -61,6 +62,7 @@ module vnethub 'modules/vnet/vnet.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'hub-VNet'
   params: {
+    location: location
     vnetAddressSpace: {
         addressPrefixes: hubVNETaddPrefixes
     }
@@ -81,6 +83,7 @@ module vnetspoke 'modules/vnet/vnet.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'spoke-VNet'
   params: {
+    location: location
     vnetAddressSpace: {
         addressPrefixes: spokeVNETaddPrefixes
     }
@@ -140,6 +143,7 @@ module publicipfw 'modules/vnet/publicip.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'publicipfw'
   params: {
+    location: location
     publicipName: 'fw-pip'
     publicipproperties: {
       publicIPAllocationMethod: 'Static'      
@@ -151,7 +155,7 @@ module publicipfw 'modules/vnet/publicip.bicep' = {
   } 
 }
 
-resource subnetfw 'Microsoft.Network/virtualNetworks/subnets@2020-11-01' existing = {
+resource subnetfw 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' existing = {
   scope: resourceGroup(rg.name)
   name: '${vnethub.name}/AzureFirewallSubnet'
   parent: vnethub
@@ -161,6 +165,7 @@ module azfirewall 'modules/vnet/firewall.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'azfirewall'
   params: {
+    location: location
     fwname: 'azfirewall'    
     fwipConfigurations: [
       {
@@ -363,6 +368,7 @@ module routetable 'modules/vnet/routetable.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'aks-udr'
   params: {
+    location: location
     rtName: 'aks-udr'
   } 
 }
@@ -385,11 +391,12 @@ module acrDeploy 'modules/acr/acr.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'acrDeploy'
   params: {
+    location: location
     acrName: acrName
   }
 }
 
-resource subnetacrpvt 'Microsoft.Network/virtualNetworks/subnets@2020-11-01' existing = {
+resource subnetacrpvt 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' existing = {
   scope: resourceGroup(rg.name)
   name: '${vnetspoke.name}/default'
   parent: vnetspoke
@@ -399,6 +406,7 @@ module acrpvtEndpoint 'modules/vnet/privateendpoint.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'acrpvtEndpoint'
   params: {
+    location: location
     privateEndpointName: 'acrpvtEndpoint'
     privateLinkServiceConnections: [
       {
@@ -440,11 +448,12 @@ module akslaworkspace 'modules/laworkspace/la.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'akslaworkspace'
   params: {
+    location: location
     basename: baseName
   }
 }
 
-resource subnetaks 'Microsoft.Network/virtualNetworks/subnets@2020-11-01' existing = {
+resource subnetaks 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' existing = {
   scope: resourceGroup(rg.name)
   name: '${vnetspoke.name}/AKS'
   parent: vnetspoke
@@ -454,7 +463,7 @@ module privatednsAKSZone 'modules/vnet/privatednszone.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'privatednsAKSZone'
   params: {
-    privateDNSZoneName: 'privatelink.${deployment().location}.azmk8s.io'
+    privateDNSZoneName: 'privatelink.${location}.azmk8s.io'
   }
 }
 
@@ -472,12 +481,13 @@ module aksIdentity 'modules/Identity/userassigned.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'aksIdentity'
   params: {
+    location: location
     basename: baseName
   }
 }
 
 resource pvtdnsAKSZone 'Microsoft.Network/dnsZones@2018-05-01' existing = {
-  name: 'privatelink.${deployment().location}.azmk8s.io'
+  name: 'privatelink.${location}.azmk8s.io'
   scope: resourceGroup(rg.name)
 }
 
@@ -485,6 +495,7 @@ module aksCluster 'modules/aks/privateaks.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'aksCluster'
   params: {
+    location: location
     aadGroupdIds: aadGroupdIds
     basename: baseName
     logworkspaceid: akslaworkspace.outputs.laworkspaceId
@@ -497,7 +508,7 @@ module aksCluster 'modules/aks/privateaks.bicep' = {
   }
 }
 
-resource subnetVM 'Microsoft.Network/virtualNetworks/subnets@2020-11-01' existing = {
+resource subnetVM 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' existing = {
   scope: resourceGroup(rg.name)
   name: '${vnethub.name}/vmsubnet'
   parent: vnethub
@@ -507,6 +518,8 @@ module jumpbox 'modules/VM/virtualmachine.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'jumpbox'
   params: {
+    location: location
+    adminuser: adminuser
     subnetId: subnetVM.id
     publicKey: pubkeydata
     script64: script64
@@ -517,6 +530,7 @@ module publicipbastion 'modules/vnet/publicip.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'publicipbastion'
   params: {
+    location: location
     publicipName: 'bastion-pip'
     publicipproperties: {
       publicIPAllocationMethod: 'Static'      
@@ -528,7 +542,7 @@ module publicipbastion 'modules/vnet/publicip.bicep' = {
   } 
 }
 
-resource subnetbastion 'Microsoft.Network/virtualNetworks/subnets@2020-11-01' existing = {
+resource subnetbastion 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' existing = {
   scope: resourceGroup(rg.name)
   name: '${vnethub.name}/AzureBastionSubnet'
   parent: vnethub
@@ -538,6 +552,7 @@ module bastion 'modules/VM/bastion.bicep' = {
   scope: resourceGroup(rg.name)
   name: 'bastion'
   params: {
+    location: location
     bastionpipId: publicipbastion.outputs.publicipId
     subnetId: subnetbastion.id
   }

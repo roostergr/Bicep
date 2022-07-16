@@ -1,9 +1,10 @@
 param bastionpipId string
 param subnetId string
+param location string
 
-resource bastion 'Microsoft.Network/bastionHosts@2021-02-01' = {
+resource bastion 'Microsoft.Network/bastionHosts@2022-01-01' = {
   name: 'bastion'
-  location: resourceGroup().location
+  location: location
   properties: {
     ipConfigurations: [
       {
